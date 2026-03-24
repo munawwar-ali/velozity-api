@@ -1,0 +1,122 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users     User[]
+  apiKeys   ApiKey[]
+  auditLogs AuditLog[]
+  emailLogs EmailLog[]
+
+  @@map("tenants")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String
+  name      String
+  role      Role     @default(MEMBER)
+  tenantId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  apiKeys   ApiKey[]
+  auditLogs AuditLog[]
+
+  @@unique([email, tenantId])
+  @@map("users")
+}
+
+model ApiKey {
+  id          String    @id @default(uuid())
+  keyHash     String    @unique
+  prefix      String
+  tenantId    String
+  userId      String
+  isActive    Boolean   @default(true)
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  rotatedAt   DateTime?
+
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  user        User      @relation(fields: [userId], references: [id])
+  auditLogs   AuditLog[]
+
+  @@map("api_keys")
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  tenantId     String
+  userId       String?
+  apiKeyId     String?
+  action       String
+  resourceType String
+  resourceId   String?
+  previousValue Json?
+  newValue     Json?
+  ipAddress    String?
+  chainHash    String
+  sequence     Int
+  createdAt    DateTime @default(now())
+
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  user         User?    @relation(fields: [userId], references: [id])
+  apiKey       ApiKey?  @relation(fields: [apiKeyId], references: [id])
+
+  @@index([tenantId, sequence])
+  @@index([tenantId, action])
+  @@index([tenantId, resourceType])
+  @@index([tenantId, createdAt])
+  @@index([userId])
+  @@map("audit_logs")
+}
+
+model EmailLog {
+  id           String      @id @default(uuid())
+  tenantId     String
+  recipient    String
+  template     String
+  status       EmailStatus @default(PENDING)
+  attemptCount Int         @default(0)
+  jobId        String?
+  previewUrl   String?
+  error        String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  tenant       Tenant      @relation(fields: [tenantId], references: [id])
+
+  @@map("email_logs")
+}
+
+model RateLimitWarning {
+  id        String   @id @default(uuid())
+  tenantId  String
+  sentAt    DateTime @default(now())
+
+  @@index([tenantId, sentAt])
+  @@map("rate_limit_warnings")
+}
+
+enum Role {
+  OWNER
+  MEMBER
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+}

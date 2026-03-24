@@ -1,0 +1,345 @@
+{
+  "info": {
+    "_postman_id": "41f4b4e7-9e4b-4089-8eca-098c9210ed84",
+    "name": "Velozity API",
+    "description": "Multi-Tenant REST API with Rate Limiting, Queue-Based Email Engine & Audit Trail",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3000" },
+    { "key": "tenant1_key", "value": "PASTE_TENANT1_API_KEY_HERE" },
+    { "key": "tenant2_key", "value": "PASTE_TENANT2_API_KEY_HERE" },
+    { "key": "internal_key", "value": "internal_super_secret_key_change_in_prod" }
+  ],
+  "item": [
+    {
+      "name": "Health & Observability",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-internal-key", "value": "{{internal_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Returns system health: API, database, Redis, queue depth, avg response time. Protected by internal API key."
+          }
+        },
+        {
+          "name": "GET /metrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-internal-key", "value": "{{internal_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/metrics",
+              "host": ["{{base_url}}"],
+              "path": ["metrics"]
+            },
+            "description": "Returns per-tenant usage stats for current billing period. Protected by internal API key."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tenant",
+      "item": [
+        {
+          "name": "GET /tenants/me",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenant1_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenants/me",
+              "host": ["{{base_url}}"],
+              "path": ["tenants", "me"]
+            },
+            "description": "Get current tenant info including user and API key counts."
+          }
+        },
+        {
+          "name": "PATCH /tenants/me",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenant1_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Acme Corporation Updated\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tenants/me",
+              "host": ["{{base_url}}"],
+              "path": ["tenants", "me"]
+            },
+            "description": "Update tenant name. Owner only."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "GET /users",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenant1_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users",
+              "host": ["{{base_url}}"],
+              "path": ["users"]
+            },
+            "description": "List all users in the authenticated tenant. Tenant-scoped — cannot see other tenant users."
+          }
+        },
+        {
+          "name": "GET /users/:id",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenant1_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/USER_ID_HERE",
+              "host": ["{{base_url}}"],
+              "path": ["users", "USER_ID_HERE"]
+            },
+            "description": "Get a single user by ID. Returns 404 if user belongs to a different tenant."
+          }
+        },
+        {
+          "name": "POST /users",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenant1_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"newuser@acme.com\",\n  \"name\": \"New User\",\n  \"role\": \"MEMBER\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users",
+              "host": ["{{base_url}}"],
+              "path": ["users"]
+            },
+            "description": "Invite a user to the tenant. Owner only. Queues an invitation email automatically."
+          }
+        },
+        {
+          "name": "PATCH /users/:id",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenant1_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Name\",\n  \"role\": \"OWNER\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/USER_ID_HERE",
+              "host": ["{{base_url}}"],
+              "path": ["users", "USER_ID_HERE"]
+            },
+            "description": "Update user name or role. Owner only. Creates audit log entry."
+          }
+        },
+        {
+          "name": "DELETE /users/:id",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenant1_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/USER_ID_HERE",
+              "host": ["{{base_url}}"],
+              "path": ["users", "USER_ID_HERE"]
+            },
+            "description": "Delete a user from the tenant. Owner only. Cannot delete yourself."
+          }
+        }
+      ]
+    },
+    {
+      "name": "API Keys",
+      "item": [
+        {
+          "name": "GET /auth/keys",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenant1_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/keys",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "keys"]
+            },
+            "description": "List all API keys for the tenant. Owner only. Raw keys are never returned."
+          }
+        },
+        {
+          "name": "POST /auth/keys",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenant1_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/keys",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "keys"]
+            },
+            "description": "Create a new API key. Owner only. Raw key shown once — store immediately."
+          }
+        },
+        {
+          "name": "POST /auth/rotate",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenant1_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/rotate",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "rotate"]
+            },
+            "description": "Rotate current API key. Owner only. Old key valid for 15 minutes. Queues notification email."
+          }
+        },
+        {
+          "name": "DELETE /auth/keys/:id",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenant1_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/keys/KEY_ID_HERE",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "keys", "KEY_ID_HERE"]
+            },
+            "description": "Revoke an API key. Owner only."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Audit",
+      "item": [
+        {
+          "name": "GET /audit",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenant1_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/audit?limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["audit"],
+              "query": [
+                { "key": "limit", "value": "20" },
+                { "key": "cursor", "value": "", "disabled": true },
+                { "key": "userId", "value": "", "disabled": true },
+                { "key": "action", "value": "", "disabled": true },
+                { "key": "resourceType", "value": "", "disabled": true },
+                { "key": "from", "value": "", "disabled": true },
+                { "key": "to", "value": "", "disabled": true }
+              ]
+            },
+            "description": "Query audit logs with filters. Supports: userId, action, resourceType, from, to, cursor, limit. Cursor-based pagination only."
+          }
+        },
+        {
+          "name": "GET /audit/verify",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenant1_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/audit/verify",
+              "host": ["{{base_url}}"],
+              "path": ["audit", "verify"]
+            },
+            "description": "Verify the entire audit chain integrity. Recomputes all SHA-256 hashes from genesis. Returns intact=true or identifies the tampered entry."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tenant Isolation Test",
+      "item": [
+        {
+          "name": "GET /users (Tenant 2 key)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenant2_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users",
+              "host": ["{{base_url}}"],
+              "path": ["users"]
+            },
+            "description": "Returns ONLY Tenant 2 users — proves tenant isolation at query level."
+          }
+        },
+        {
+          "name": "GET /audit/verify (Tenant 2 key)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenant2_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/audit/verify",
+              "host": ["{{base_url}}"],
+              "path": ["audit", "verify"]
+            },
+            "description": "Verifies Tenant 2 audit chain independently."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Rate Limiting Test",
+      "item": [
+        {
+          "name": "GET /users (for rate limit testing)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenant1_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users",
+              "host": ["{{base_url}}"],
+              "path": ["users"]
+            },
+            "description": "Send this repeatedly to test rate limiting. Use Postman Runner to send 55+ requests in 5 seconds to trigger burst limit."
+          }
+        }
+      ]
+    }
+  ]
+}
